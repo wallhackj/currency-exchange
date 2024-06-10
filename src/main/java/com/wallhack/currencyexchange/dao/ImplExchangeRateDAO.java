@@ -13,8 +13,8 @@ import java.util.List;
 import java.util.Optional;
 
 @AllArgsConstructor
-public class ExchangeRateDAO implements ICRUDRepositoryExchangeRate {
-    private Connection connection;
+public class ImplExchangeRateDAO implements ICRUDRepositoryExchangeRate {
+    private final Connection connection;
 
     private static ExchangeRateDTO getExchangeRateDTO(ResultSet resultSet) throws SQLException {
         var exchangeRateId = resultSet.getLong("id");

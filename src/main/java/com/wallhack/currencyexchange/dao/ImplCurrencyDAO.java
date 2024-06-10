@@ -12,7 +12,7 @@ import java.util.List;
 import java.util.Optional;
 
 @AllArgsConstructor
-public class CurrencyDAO implements ICRUDRepositoryCurrency{
+public class ImplCurrencyDAO implements ICRUDRepositoryCurrency{
     private final Connection connection;
 
     private static CurrencyDTO getResult(ResultSet resultSet) throws SQLException {
