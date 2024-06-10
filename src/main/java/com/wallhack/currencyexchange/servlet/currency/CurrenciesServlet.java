@@ -4,7 +4,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wallhack.currencyexchange.model.CurrencyDTO;
 import com.wallhack.currencyexchange.service.CurrencyService;
 import com.wallhack.currencyexchange.utils.SingletonDataBaseConnection;
-import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
