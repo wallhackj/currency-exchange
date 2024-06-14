@@ -1,4 +1,4 @@
-package com.wallhack.currencyexchange.servlet.currency;
+package com.wallhack.currencyexchange.servlet.Currency;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wallhack.currencyexchange.model.CurrencyDTO;
@@ -15,15 +15,27 @@ import java.sql.SQLException;
 import java.util.List;
 import java.util.Optional;
 
+import static com.wallhack.currencyexchange.utils.ServletUtils.stringIsNotEmpty;
+
 
 @WebServlet(name = "CurrenciesServlet", value = "/currencies")
 public class CurrenciesServlet extends HttpServlet {
     private CurrencyService currencyService;
+    private  Connection connection;
 
     @Override
     public void init() {
-        Connection connection = SingletonDataBaseConnection.getInstance().getConnection();
+        connection = SingletonDataBaseConnection.getInstance().getConnection();
         this.currencyService = new CurrencyService(connection);
+    }
+
+    @Override
+    public void destroy() {
+        try {
+            connection.close();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
     }
 
     @Override
@@ -35,7 +47,6 @@ public class CurrenciesServlet extends HttpServlet {
         try {
             List<CurrencyDTO> currencies = currencyService.getAllCurrencies();
             mapper.writeValue(resp.getWriter(), currencies);
-
             resp.setStatus(HttpServletResponse.SC_OK);
         } catch (SQLException e) {
             e.printStackTrace();
@@ -49,26 +60,24 @@ public class CurrenciesServlet extends HttpServlet {
         String fromCurrencyFullName = req.getParameter("name");
         String fromCurrencySign = req.getParameter("sign");
 
-        if (fromCurrencyCode == null || fromCurrencyFullName == null || fromCurrencySign == null
-                || fromCurrencyCode.isEmpty() || fromCurrencyFullName.isEmpty() || fromCurrencySign.isEmpty()) {
+        if (!stringIsNotEmpty(fromCurrencyCode, fromCurrencyFullName, fromCurrencySign)) {
             resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-            return;
         }
-
-        CurrencyDTO currency = new CurrencyDTO(99999999, fromCurrencyCode, fromCurrencyFullName, fromCurrencySign);
 
         try {
            Optional<CurrencyDTO> findByCode =  currencyService.getCurrencyByCode(fromCurrencyCode);
            if (findByCode.isPresent()) {
                 resp.setStatus(HttpServletResponse.SC_CONFLICT);
+           }else {
+               currencyService.insertCurrency(new CurrencyDTO(-1, fromCurrencyCode, fromCurrencyFullName, fromCurrencySign));
+               resp.setStatus(HttpServletResponse.SC_CREATED);
            }
-
-           currencyService.insertCurrency(currency);
-           resp.setStatus(HttpServletResponse.SC_CREATED);
 
         }catch (SQLException e){
             e.printStackTrace();
+            resp.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
         }
 
     }
+
 }
