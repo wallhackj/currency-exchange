@@ -18,29 +18,29 @@ import java.sql.SQLException;
 import java.util.List;
 import java.util.Optional;
 
-
 import static com.wallhack.currencyexchange.utils.ServletUtils.stringIsNotEmpty;
 
 @WebServlet(name = "ExchangeRatesServlet", value = "/exchangeRates")
 public class ExchangeRatesServlet extends HttpServlet {
-    private CurrencyService currencyService;
-    private ExchangeService exchangeService;
-    private Connection connection;
+    Connection connection;
+    ExchangeService exchangeService;
+    CurrencyService currencyService;
 
     @Override
-    public void init(){
-        connection = SingletonDataBaseConnection.getInstance().getConnection();
+    public void init() {
+        this.connection = SingletonDataBaseConnection.getInstance().getConnection();
         this.exchangeService = new ExchangeService(connection);
         this.currencyService = new CurrencyService(connection);
     }
 
     @Override
     public void destroy() {
-        try {
-            connection.close();
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
+       try {
+           connection.close();
+       }catch (SQLException e) {
+           e.printStackTrace();
+       }
+
     }
 
     @Override
@@ -61,12 +61,12 @@ public class ExchangeRatesServlet extends HttpServlet {
     }
 
     @Override
-    protected void doPost(HttpServletRequest req, HttpServletResponse resp){
+    protected void doPost(HttpServletRequest req, HttpServletResponse resp) {
         var baseCurrencyCode = req.getParameter("baseCurrencyCode");
         var targetCurrencyCode = req.getParameter("targetCurrencyCode");
         var rate = req.getParameter("rate");
 
-        if (!stringIsNotEmpty(baseCurrencyCode, targetCurrencyCode, rate)) {
+        if (stringIsNotEmpty(baseCurrencyCode, targetCurrencyCode, rate)) {
             resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
             return;
         }
@@ -96,5 +96,4 @@ public class ExchangeRatesServlet extends HttpServlet {
             resp.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
         }
     }
-
 }

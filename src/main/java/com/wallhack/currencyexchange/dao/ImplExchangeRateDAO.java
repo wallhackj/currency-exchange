@@ -71,33 +71,34 @@ public class ImplExchangeRateDAO implements ICRUDRepositoryExchangeRate {
         return exchangeRateDTOS;
     }
 
-    private static void firstThreePreparedStatements(ExchangeRateDTO entity, PreparedStatement preparedStatement) throws SQLException {
-        preparedStatement.setLong(1, entity.baseCurrency().id());
-        preparedStatement.setLong(2, entity.targetCurrency().id());
-        preparedStatement.setBigDecimal(3, entity.rate());
-        preparedStatement.executeUpdate();
-
-    }
 
     @Override
     public void save(ExchangeRateDTO entity) throws SQLException {
         var querySave = "INSERT INTO ExchangeRates (baseCurrencyID, targetCurrencyID, rate) VALUES (?, ?, ?)";
 
         try (PreparedStatement preparedStatement = connection.prepareStatement(querySave)) {
-            firstThreePreparedStatements(entity, preparedStatement);
+            preparedStatement.setLong(1, entity.baseCurrency().id());
+            preparedStatement.setLong(2, entity.targetCurrency().id());
+            preparedStatement.setBigDecimal(3, entity.rate());
+            preparedStatement.executeUpdate();
         }
 
     }
 
     @Override
     public void update(ExchangeRateDTO entity) throws SQLException {
-        var queryUpdate = "UPDATE ExchangeRates SET baseCurrencyID = ?, targetCurrencyID = ?, rate = ? WHERE id = ?";
+        var queryUpdate = "UPDATE ExchangeRates SET rate = ? WHERE id = ?";
 
-        try (PreparedStatement preparedStatement = connection.prepareStatement(queryUpdate)) {
-            preparedStatement.setLong(4, entity.id());
-            firstThreePreparedStatements(entity, preparedStatement);
+        if (findExchangeByBothCurrencies(entity.baseCurrency().code() , entity.targetCurrency().code()).isPresent()) {
+
+            var entityId = findExchangeByBothCurrencies(entity.baseCurrency().code(), entity.targetCurrency().code()).get().id();
+
+            try (PreparedStatement preparedStatement = connection.prepareStatement(queryUpdate)) {
+                preparedStatement.setBigDecimal(1, entity.rate());
+                preparedStatement.setLong(2, entityId);
+                preparedStatement.executeUpdate();
+            }
         }
-
     }
 
     @Override
