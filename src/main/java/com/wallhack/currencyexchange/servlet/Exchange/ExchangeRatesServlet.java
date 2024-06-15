@@ -50,8 +50,8 @@ public class ExchangeRatesServlet extends HttpServlet {
         resp.setCharacterEncoding("UTF-8");
 
         try {
-            List<ExchangeRateDTO> exchangeRates = exchangeService.getAllExchangeRates();
-            mapper.writeValue(resp.getWriter(), exchangeRates);
+            List<ExchangeRateDTO> allExchangeRates = exchangeService.getAllExchangeRates();
+            mapper.writeValue(resp.getWriter(), allExchangeRates);
             resp.setStatus(HttpServletResponse.SC_OK);
         } catch (SQLException e) {
             e.printStackTrace();
@@ -66,7 +66,7 @@ public class ExchangeRatesServlet extends HttpServlet {
         var targetCurrencyCode = req.getParameter("targetCurrencyCode");
         var rate = req.getParameter("rate");
 
-        if (stringIsNotEmpty(baseCurrencyCode, targetCurrencyCode, rate)) {
+        if (!stringIsNotEmpty(baseCurrencyCode, targetCurrencyCode, rate)) {
             resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
             return;
         }
@@ -74,21 +74,15 @@ public class ExchangeRatesServlet extends HttpServlet {
         try {
             Optional<CurrencyDTO> baseCurrency = currencyService.getCurrencyByCode(baseCurrencyCode);
             Optional<CurrencyDTO> targetCurrency = currencyService.getCurrencyByCode(targetCurrencyCode);
-            BigDecimal bigRate;
-
-            try {
-                bigRate = new BigDecimal(rate);
-            } catch (NumberFormatException e) {
-                resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-                return;
-            }
+            BigDecimal bigRate = new BigDecimal(rate);
 
             if (baseCurrency.isPresent() && targetCurrency.isPresent()) {
-                Optional<ExchangeRateDTO> existingExchange = exchangeService.getExchangeRateByBothCurrencyIds(baseCurrency.get().id(), targetCurrency.get().id());
+                Optional<ExchangeRateDTO> existingExchange = exchangeService
+                        .getExchangeRateByBothCurrency(baseCurrency.get().code(), targetCurrency.get().code());
                 if (existingExchange.isPresent()) {
                     resp.setStatus(HttpServletResponse.SC_CONFLICT);
                 } else {
-                    exchangeService.insertExchangeRate(new ExchangeRateDTO(-1, baseCurrency.get().id(), targetCurrency.get().id(), bigRate));
+                    exchangeService.insertExchangeRate(new ExchangeRateDTO(-1, baseCurrency.get(), targetCurrency.get(), bigRate));
                     resp.setStatus(HttpServletResponse.SC_CREATED);
                 }
             } else {
@@ -97,6 +91,8 @@ public class ExchangeRatesServlet extends HttpServlet {
 
         } catch (SQLException e) {
             e.printStackTrace();
+            resp.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+        }catch (NumberFormatException e){
             resp.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
         }
     }

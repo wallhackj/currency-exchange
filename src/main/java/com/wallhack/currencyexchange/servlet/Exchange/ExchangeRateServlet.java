@@ -17,7 +17,6 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Optional;
 
-
 @WebServlet(name = "ExchangeRatesServlet", value = "/exchangeRate/*")
 public class ExchangeRateServlet extends HttpServlet {
     Connection connection;
@@ -54,11 +53,10 @@ public class ExchangeRateServlet extends HttpServlet {
 
         try {
             Optional<CurrencyDTO> baseCurrencyDTO = currencyService.getCurrencyByCode(currencyInfo.substring(1, 4));
-            Optional<CurrencyDTO> targetCurrencyDTO = currencyService.getCurrencyByCode(currencyInfo.substring(3, 6));
+            Optional<CurrencyDTO> targetCurrencyDTO = currencyService.getCurrencyByCode(currencyInfo.substring(4, 7));
 
             if (baseCurrencyDTO.isPresent() && targetCurrencyDTO.isPresent()) {
-                Optional<ExchangeRateDTO> exchangeRateDTO = exchangeService
-                        .getExchangeRateByBothCurrencyIds(baseCurrencyDTO.get().id(), targetCurrencyDTO.get().id());
+                Optional<ExchangeRateDTO> exchangeRateDTO = exchangeService.getExchangeRateByBothCurrency(baseCurrencyDTO.get().code(), targetCurrencyDTO.get().code());
 
                 if (exchangeRateDTO.isPresent()){
                     mapper.writeValue(resp.getWriter(),exchangeRateDTO.get());
@@ -72,4 +70,6 @@ public class ExchangeRateServlet extends HttpServlet {
             resp.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
         }
     }
+
+
 }

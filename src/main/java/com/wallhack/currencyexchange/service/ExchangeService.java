@@ -41,19 +41,19 @@ public class ExchangeService {
         return exchangeRateDAO.findAll();
     }
 
-    public List<ExchangeRateDTO> getExchangeRateByCurrencyId(long id) throws SQLException {
-        return exchangeRateDAO.findByCurrency(id);
+    public List<ExchangeRateDTO> getExchangeRateByCurrency(String currency) throws SQLException {
+        return exchangeRateDAO.findByCurrencyWithUSD(currency);
     }
 
-    public Optional<ExchangeRateDTO> getExchangeRateByBothCurrencyIds(long source, long target) throws SQLException {
+    public Optional<ExchangeRateDTO> getExchangeRateByBothCurrency(String source, String target) throws SQLException {
         return exchangeRateDAO.findExchangeByBothCurrencies(source, target);
     }
 
     public BigDecimal getSumAfterExchange(ExchangeRateDTO exchangeRate, BigDecimal amount) throws SQLException {
         BigDecimal sum = BigDecimal.ZERO;
 
-        Optional<ExchangeRateDTO> exchangeRateDTO = getExchangeRateByBothCurrencyIds(exchangeRate.targetCurrency()
-                , exchangeRate.baseCurrency());
+        Optional<ExchangeRateDTO> exchangeRateDTO = getExchangeRateByBothCurrency(exchangeRate.targetCurrency().code()
+                , exchangeRate.baseCurrency().code());
 
         if (getExchangeRateById(exchangeRate.id()).isPresent()){
             sum = exchangeRate.rate().multiply(amount);
@@ -77,10 +77,10 @@ public class ExchangeService {
     private BigDecimal crossExchangeRate(ExchangeRateDTO exchangeRateDTO) throws SQLException {
         BigDecimal result = BigDecimal.ZERO;
 
-        Optional<ExchangeRateDTO> sourceExchangeRate = getExchangeRateByCurrencyId(exchangeRateDTO.baseCurrency())
+        Optional<ExchangeRateDTO> sourceExchangeRate = getExchangeRateByCurrency(exchangeRateDTO.baseCurrency().code())
                 .stream()
                 .findFirst();
-        Optional<ExchangeRateDTO> targetExchangeRate = getExchangeRateByCurrencyId(exchangeRateDTO.targetCurrency())
+        Optional<ExchangeRateDTO> targetExchangeRate = getExchangeRateByCurrency(exchangeRateDTO.targetCurrency().code())
                 .stream()
                 .findFirst();
 

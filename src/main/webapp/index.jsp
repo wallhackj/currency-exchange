@@ -2,11 +2,11 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Currency Exchanger</title>
+    <title>My program</title>
 </head>
 <body>
 <h1>
-    <%= "Currency Exchanger" %>
+    <%= "My program" %>
 </h1>
 </body>
 </html>

@@ -1,7 +1,6 @@
 package com.wallhack.currencyexchange.dao;
 
 import com.wallhack.currencyexchange.model.ExchangeRateDTO;
-import lombok.AllArgsConstructor;
 
 import java.math.BigDecimal;
 import java.sql.Connection;
@@ -12,17 +11,28 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-@AllArgsConstructor
+
 public class ImplExchangeRateDAO implements ICRUDRepositoryExchangeRate {
     private final Connection connection;
+    private final ImplCurrencyDAO implCurrencyDAO;
 
-    private static ExchangeRateDTO getExchangeRateDTO(ResultSet resultSet) throws SQLException {
+    public ImplExchangeRateDAO(Connection connection){
+        this.connection = connection;
+        this.implCurrencyDAO = new ImplCurrencyDAO(connection);
+    }
+
+    private Optional<ExchangeRateDTO> getExchangeRateDTO(ResultSet resultSet) throws SQLException {
         var exchangeRateId = resultSet.getLong("id");
-        var baseCurrencyID = resultSet.getInt("baseCurrencyID");
-        var targetCurrencyID = resultSet.getInt("targetCurrencyID");
+        var baseCurrencyID = resultSet.getLong("baseCurrencyID");
+        var targetCurrencyID = resultSet.getLong("targetCurrencyID");
         BigDecimal rate = resultSet.getBigDecimal("rate");
 
-        return new ExchangeRateDTO(exchangeRateId, baseCurrencyID, targetCurrencyID, rate);
+        if (implCurrencyDAO.findById(baseCurrencyID).isEmpty() && implCurrencyDAO.findById(targetCurrencyID).isEmpty()) {
+           return Optional.empty();
+        }
+
+        return Optional.of(new ExchangeRateDTO(exchangeRateId, implCurrencyDAO.findById(baseCurrencyID).get()
+                ,implCurrencyDAO.findById(targetCurrencyID).get(), rate));
     }
 
     @Override
@@ -34,9 +44,10 @@ public class ImplExchangeRateDAO implements ICRUDRepositoryExchangeRate {
             var resultSet = preparedStatement.executeQuery();
 
             if (resultSet.next()) {
-                ExchangeRateDTO result = getExchangeRateDTO(resultSet);
-
-                return Optional.of(result);
+                if (getExchangeRateDTO(resultSet).isPresent()){
+                    ExchangeRateDTO result = getExchangeRateDTO(resultSet).get();
+                    return Optional.of(result);
+                }
             }
         }
 
@@ -51,9 +62,9 @@ public class ImplExchangeRateDAO implements ICRUDRepositoryExchangeRate {
         try (PreparedStatement preparedStatement = connection.prepareStatement(queryFindAll)) {
             var resultSet = preparedStatement.executeQuery();
             while (resultSet.next()) {
-                ExchangeRateDTO result = getExchangeRateDTO(resultSet);
-
-                exchangeRateDTOS.add(result);
+                if (getExchangeRateDTO(resultSet).isPresent()){
+                    exchangeRateDTOS.add(getExchangeRateDTO(resultSet).get());
+                }
             }
         }
 
@@ -61,8 +72,8 @@ public class ImplExchangeRateDAO implements ICRUDRepositoryExchangeRate {
     }
 
     private static void firstThreePreparedStatements(ExchangeRateDTO entity, PreparedStatement preparedStatement) throws SQLException {
-        preparedStatement.setLong(1, entity.baseCurrency());
-        preparedStatement.setLong(2, entity.targetCurrency());
+        preparedStatement.setLong(1, entity.baseCurrency().id());
+        preparedStatement.setLong(2, entity.targetCurrency().id());
         preparedStatement.setBigDecimal(3, entity.rate());
         preparedStatement.executeUpdate();
 
@@ -101,18 +112,23 @@ public class ImplExchangeRateDAO implements ICRUDRepositoryExchangeRate {
     }
 
     @Override
-    public Optional<ExchangeRateDTO> findExchangeByBothCurrencies(long baseCurrency, long targetCurrency) throws SQLException{
+    public Optional<ExchangeRateDTO> findExchangeByBothCurrencies(String baseCurrency, String targetCurrency) throws SQLException{
         var queryFindExchangeByBothCurrencies = "SELECT * FROM ExchangeRates WHERE baseCurrencyID = ? AND targetCurrencyID = ?";
 
-        try (PreparedStatement preparedStatement = connection.prepareStatement(queryFindExchangeByBothCurrencies)) {
-            preparedStatement.setLong(1, baseCurrency);
-            preparedStatement.setLong(2, targetCurrency);
-            var resultSet = preparedStatement.executeQuery();
+        if (implCurrencyDAO.findByCode(baseCurrency).isPresent() && implCurrencyDAO.findByCode(targetCurrency).isPresent()) {
+            var baseCurrencyId = implCurrencyDAO.findByCode(baseCurrency).get().id();
+            var targetCurrencyId = implCurrencyDAO.findByCode(targetCurrency).get().id();
 
-            if (resultSet.next()) {
-                ExchangeRateDTO result = getExchangeRateDTO(resultSet);
+            try (PreparedStatement preparedStatement = connection.prepareStatement(queryFindExchangeByBothCurrencies)) {
+                preparedStatement.setLong(1, baseCurrencyId);
+                preparedStatement.setLong(2, targetCurrencyId);
+                var resultSet = preparedStatement.executeQuery();
 
-                return Optional.of(result);
+                if (resultSet.next()) {
+                    if (getExchangeRateDTO(resultSet).isPresent()){
+                        return Optional.of(getExchangeRateDTO(resultSet).get());
+                    }
+                }
             }
         }
 
@@ -120,18 +136,18 @@ public class ImplExchangeRateDAO implements ICRUDRepositoryExchangeRate {
     }
 
     @Override
-    public List<ExchangeRateDTO> findByCurrency(long currency) throws SQLException{
+    public List<ExchangeRateDTO> findByCurrencyWithUSD(String currency) throws SQLException{
         List<ExchangeRateDTO> exchangeRateDTOS = new ArrayList<>();
         var queryFindByCurrency = "SELECT * FROM ExchangeRates WHERE baseCurrencyID = ? OR targetCurrencyID = ?";
 
         try (PreparedStatement preparedStatement = connection.prepareStatement(queryFindByCurrency)) {
-          preparedStatement.setLong(1, currency);
-          preparedStatement.setLong(2, currency);
+          preparedStatement.setString(1, currency);
+          preparedStatement.setString(2, currency);
           var resultSet = preparedStatement.executeQuery();
 
           while (resultSet.next()) {
-              ExchangeRateDTO result = getExchangeRateDTO(resultSet);
-              exchangeRateDTOS.add(result);
+            if (getExchangeRateDTO(resultSet).isPresent())
+              exchangeRateDTOS.add(getExchangeRateDTO(resultSet).get());
           }
         }
 
