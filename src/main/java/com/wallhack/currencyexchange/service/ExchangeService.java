@@ -41,11 +41,11 @@ public class ExchangeService {
         return exchangeRateDAO.findAll();
     }
 
-    public List<ExchangeRateDTO> getExchangeRateByCurrencyId(int id) throws SQLException {
+    public List<ExchangeRateDTO> getExchangeRateByCurrencyId(long id) throws SQLException {
         return exchangeRateDAO.findByCurrency(id);
     }
 
-    public Optional<ExchangeRateDTO> getExchangeRateByBothCurrencyIds(int source, int target) throws SQLException {
+    public Optional<ExchangeRateDTO> getExchangeRateByBothCurrencyIds(long source, long target) throws SQLException {
         return exchangeRateDAO.findExchangeByBothCurrencies(source, target);
     }
 

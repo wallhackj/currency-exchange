@@ -7,6 +7,6 @@ import java.util.List;
 import java.util.Optional;
 
 public interface ICRUDRepositoryExchangeRate extends ICRUDRepository<ExchangeRateDTO>{
-    Optional<ExchangeRateDTO> findExchangeByBothCurrencies(int baseCurrency, int targetCurrency) throws SQLException;
-    List<ExchangeRateDTO> findByCurrency(int currency) throws SQLException;
+    Optional<ExchangeRateDTO> findExchangeByBothCurrencies(long baseCurrency, long targetCurrency) throws SQLException;
+    List<ExchangeRateDTO> findByCurrency(long currency) throws SQLException;
 }

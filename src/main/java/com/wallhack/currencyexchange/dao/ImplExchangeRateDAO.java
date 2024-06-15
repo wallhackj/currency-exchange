@@ -61,8 +61,8 @@ public class ImplExchangeRateDAO implements ICRUDRepositoryExchangeRate {
     }
 
     private static void firstThreePreparedStatements(ExchangeRateDTO entity, PreparedStatement preparedStatement) throws SQLException {
-        preparedStatement.setInt(1, entity.baseCurrency());
-        preparedStatement.setInt(2, entity.targetCurrency());
+        preparedStatement.setLong(1, entity.baseCurrency());
+        preparedStatement.setLong(2, entity.targetCurrency());
         preparedStatement.setBigDecimal(3, entity.rate());
         preparedStatement.executeUpdate();
 
@@ -101,12 +101,12 @@ public class ImplExchangeRateDAO implements ICRUDRepositoryExchangeRate {
     }
 
     @Override
-    public Optional<ExchangeRateDTO> findExchangeByBothCurrencies(int baseCurrency, int targetCurrency) throws SQLException{
+    public Optional<ExchangeRateDTO> findExchangeByBothCurrencies(long baseCurrency, long targetCurrency) throws SQLException{
         var queryFindExchangeByBothCurrencies = "SELECT * FROM ExchangeRates WHERE baseCurrencyID = ? AND targetCurrencyID = ?";
 
         try (PreparedStatement preparedStatement = connection.prepareStatement(queryFindExchangeByBothCurrencies)) {
-            preparedStatement.setInt(1, baseCurrency);
-            preparedStatement.setInt(2, targetCurrency);
+            preparedStatement.setLong(1, baseCurrency);
+            preparedStatement.setLong(2, targetCurrency);
             var resultSet = preparedStatement.executeQuery();
 
             if (resultSet.next()) {
@@ -120,13 +120,13 @@ public class ImplExchangeRateDAO implements ICRUDRepositoryExchangeRate {
     }
 
     @Override
-    public List<ExchangeRateDTO> findByCurrency(int currency) throws SQLException{
+    public List<ExchangeRateDTO> findByCurrency(long currency) throws SQLException{
         List<ExchangeRateDTO> exchangeRateDTOS = new ArrayList<>();
         var queryFindByCurrency = "SELECT * FROM ExchangeRates WHERE baseCurrencyID = ? OR targetCurrencyID = ?";
 
         try (PreparedStatement preparedStatement = connection.prepareStatement(queryFindByCurrency)) {
-          preparedStatement.setInt(1, currency);
-          preparedStatement.setInt(2, currency);
+          preparedStatement.setLong(1, currency);
+          preparedStatement.setLong(2, currency);
           var resultSet = preparedStatement.executeQuery();
 
           while (resultSet.next()) {
