@@ -39,7 +39,9 @@ public class ExchangeRateServlet extends HttpServlet {
     @Override
     public void destroy() {
         try {
-            connection.close();
+            if (connection != null && !connection.isClosed()) {
+                connection.close();
+            }
         } catch (SQLException e) {
             logger.log(Level.SEVERE, "Error closing database connection", e);
         }
@@ -56,9 +58,18 @@ public class ExchangeRateServlet extends HttpServlet {
     }
 
     @Override
-    protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+    protected void doGet(HttpServletRequest req, HttpServletResponse resp) {
         prepareResponse(resp);
 
+        try {
+            processGetExchangeRate(req, resp);
+        }catch (Exception e){
+            handleResponseError(resp , logger , mapper , e , SC_INTERNAL_SERVER_ERROR
+                    , "Something went wrong with database, try again later" );
+        }
+    }
+
+    private void processGetExchangeRate(HttpServletRequest req, HttpServletResponse resp) throws IOException, SQLException {
         var currencyInfo = req.getPathInfo();
 
         if (currencyInfo.length() != 7) {
@@ -66,28 +77,31 @@ public class ExchangeRateServlet extends HttpServlet {
             mapper.writeValue(resp.getWriter(), new ErrorResponse(SC_BAD_REQUEST , "Non-existing path parameters"));
         }
 
-        try {
-            Optional<ExchangeRateDTO> exchangeRateDTO = exchangeService.getExchangeRateByBothCurrency(currencyInfo.substring(1, 4)
-                        , currencyInfo.substring(4, 7));
+        Optional<ExchangeRateDTO> exchangeRateDTO = exchangeService.getExchangeRateByBothCurrency(currencyInfo.substring(1, 4)
+                , currencyInfo.substring(4, 7));
 
-            if (exchangeRateDTO.isPresent()){
-                resp.setStatus(HttpServletResponse.SC_OK);
-                mapper.writeValue(resp.getWriter(),exchangeRateDTO.get());
-
-            }else {
-                resp.setStatus(SC_NOT_FOUND);
-                mapper.writeValue(resp.getWriter() , new ErrorResponse(SC_BAD_REQUEST , "Exchange rate not found"));
-            }
-
-        }catch (SQLException e){
-            handleResponseError(resp , logger , mapper , e ,SC_INTERNAL_SERVER_ERROR
-                    , "Something went wrong with database, try again later");
+        if (exchangeRateDTO.isPresent()){
+            resp.setStatus(HttpServletResponse.SC_OK);
+            mapper.writeValue(resp.getWriter(),exchangeRateDTO.get());
+        }else {
+            resp.setStatus(SC_NOT_FOUND);
+            mapper.writeValue(resp.getWriter() , new ErrorResponse(SC_BAD_REQUEST , "Exchange rate not found"));
         }
     }
 
-    protected void doPatch(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+    protected void doPatch(HttpServletRequest req, HttpServletResponse resp) {
         prepareResponse(resp);
 
+        try {
+            processPatchExchangeRate(req, resp);
+        }catch (Exception e){
+            handleResponseError(resp , logger , mapper , e , SC_INTERNAL_SERVER_ERROR
+                    , "Something went wrong, try again later or verify your request parameters");
+        }
+
+    }
+
+    private void processPatchExchangeRate(HttpServletRequest req, HttpServletResponse resp) throws IOException, SQLException, NumberFormatException {
         var currencyInfo = req.getPathInfo();
 
         if (currencyInfo.length() != 7) {
@@ -105,31 +119,19 @@ public class ExchangeRateServlet extends HttpServlet {
             return;
         }
 
-        try {
-            BigDecimal bigRate = new BigDecimal(rate);
+        BigDecimal bigRate = new BigDecimal(rate);
+        Optional<ExchangeRateDTO> existingExchange = exchangeService
+                    .getExchangeRateByBothCurrency(baseCurrencyCode, targetCurrencyCode);
 
-            Optional<ExchangeRateDTO> existingExchange = exchangeService
-                        .getExchangeRateByBothCurrency(baseCurrencyCode, targetCurrencyCode);
-
-            if (existingExchange.isPresent()) {
-
-                ExchangeRateDTO updatedExchangeDTO = new ExchangeRateDTO(-1, existingExchange.get().baseCurrency()
-                        , existingExchange.get().targetCurrency() , bigRate);
-                resp.setStatus(HttpServletResponse.SC_CREATED);
-                exchangeService.updateExchangeRate(updatedExchangeDTO);
-                mapper.writeValue(resp.getWriter(), updatedExchangeDTO);
-
-            }else {
-                resp.setStatus(SC_NOT_FOUND);
-                mapper.writeValue(resp.getWriter(), new ErrorResponse(SC_NOT_FOUND, "Exchange rate not found"));
-            }
-
-        } catch (SQLException e) {
-            handleResponseError(resp , logger , mapper , e , SC_INTERNAL_SERVER_ERROR
-                    , "Something went wrong with database, try again later" );
-        }catch (NumberFormatException e){
-            handleResponseError(resp , logger , mapper , e , SC_INTERNAL_SERVER_ERROR
-                    , "Wrong rate format , must be numbers");
+        if (existingExchange.isPresent()) {
+            ExchangeRateDTO updatedExchangeDTO = new ExchangeRateDTO(-1, existingExchange.get().baseCurrency()
+                    , existingExchange.get().targetCurrency() , bigRate);
+            resp.setStatus(HttpServletResponse.SC_CREATED);
+            exchangeService.updateExchangeRate(updatedExchangeDTO);
+            mapper.writeValue(resp.getWriter(), updatedExchangeDTO);
+        }else {
+            resp.setStatus(SC_NOT_FOUND);
+            mapper.writeValue(resp.getWriter(), new ErrorResponse(SC_NOT_FOUND, "Exchange rate not found"));
         }
     }
 }

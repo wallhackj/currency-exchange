@@ -38,7 +38,9 @@ public class CurrenciesServlet extends HttpServlet {
     @Override
     public void destroy() {
         try {
-            connection.close();
+            if (connection != null && !connection.isClosed()) {
+                connection.close();
+            }
         } catch (SQLException e) {
             logger.log(Level.SEVERE, "Error closing database connection", e);
         }
@@ -50,21 +52,16 @@ public class CurrenciesServlet extends HttpServlet {
 
         try {
             processGetCurrencies(resp);
-        }catch (IOException e) {
+        }catch (Exception e) {
             handleResponseError(resp , logger , mapper , e , SC_INTERNAL_SERVER_ERROR
                     , "Error writing IO Exception response");
         }
     }
 
-    private void processGetCurrencies(HttpServletResponse resp) throws IOException {
-        try {
-            List<CurrencyDTO> currencies = currencyService.getAllCurrencies();
-            resp.setStatus(HttpServletResponse.SC_OK);
-            mapper.writeValue(resp.getWriter(), currencies);
-
-        } catch (SQLException e) {
-            handleResponseError(resp, logger , mapper , e , SC_INTERNAL_SERVER_ERROR , "Internal server error");
-        }
+    private void processGetCurrencies(HttpServletResponse resp) throws IOException, SQLException {
+        List<CurrencyDTO> currencies = currencyService.getAllCurrencies();
+        resp.setStatus(HttpServletResponse.SC_OK);
+        mapper.writeValue(resp.getWriter(), currencies);
     }
 
     @Override
@@ -73,12 +70,12 @@ public class CurrenciesServlet extends HttpServlet {
 
         try {
             processPostCurrencies(req , resp);
-        }catch (IOException e) {
+        }catch (Exception e) {
             handleResponseError(resp, logger , mapper , e , SC_INTERNAL_SERVER_ERROR , "Internal server error");
         }
     }
 
-    private void processPostCurrencies(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+    private void processPostCurrencies(HttpServletRequest req, HttpServletResponse resp) throws IOException, SQLException {
         String fromCurrencyCode = req.getParameter("code");
         String fromCurrencyFullName = req.getParameter("name");
         String fromCurrencySign = req.getParameter("sign");
@@ -90,23 +87,17 @@ public class CurrenciesServlet extends HttpServlet {
             return;
         }
 
-        try {
-            Optional<CurrencyDTO> findByCode =  currencyService.getCurrencyByCode(fromCurrencyCode);
+        Optional<CurrencyDTO> findByCode =  currencyService.getCurrencyByCode(fromCurrencyCode);
 
-            if (findByCode.isPresent()) {
-                resp.setStatus(HttpServletResponse.SC_CONFLICT);
-                mapper.writeValue(resp.getWriter() , new ErrorResponse(SC_CONFLICT , "Currency already exists"));
-            }else {
-                CurrencyDTO insertedCurrency = new CurrencyDTO(-1, fromCurrencyCode, fromCurrencyFullName, fromCurrencySign);
-                resp.setStatus(HttpServletResponse.SC_CREATED);
-                currencyService.insertCurrency(insertedCurrency);
-                mapper.writeValue(resp.getWriter(), insertedCurrency);
+        if (findByCode.isPresent()) {
+            resp.setStatus(HttpServletResponse.SC_CONFLICT);
+            mapper.writeValue(resp.getWriter() , new ErrorResponse(SC_CONFLICT , "Currency already exists"));
+        }else {
+            CurrencyDTO insertedCurrency = new CurrencyDTO(-1, fromCurrencyCode, fromCurrencyFullName, fromCurrencySign);
+            resp.setStatus(HttpServletResponse.SC_CREATED);
+            currencyService.insertCurrency(insertedCurrency);
+            mapper.writeValue(resp.getWriter(), insertedCurrency);
 
-            }
-
-        }catch (SQLException e){
-            handleResponseError(resp, logger , mapper , e , SC_INTERNAL_SERVER_ERROR , "Internal server error");
         }
     }
-
 }

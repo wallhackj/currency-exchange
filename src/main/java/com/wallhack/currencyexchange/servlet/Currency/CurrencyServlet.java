@@ -37,7 +37,9 @@ public class CurrencyServlet extends HttpServlet {
     @Override
     public void destroy() {
         try {
-            connection.close();
+            if (connection != null && !connection.isClosed()) {
+                connection.close();
+            }
         } catch (SQLException e) {
             logger.log(Level.SEVERE, "Error closing database connection", e);
         }
@@ -49,12 +51,12 @@ public class CurrencyServlet extends HttpServlet {
 
         try {
             processGetCurrency(req , resp);
-        }catch (IOException e){
+        }catch (Exception e){
             handleResponseError(resp , logger , mapper , e , SC_INTERNAL_SERVER_ERROR ,"Error writing IO Exception response" );
         }
     }
 
-    private void processGetCurrency(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+    private void processGetCurrency(HttpServletRequest req, HttpServletResponse resp) throws IOException, SQLException {
         var currencyInfo = req.getPathInfo();
 
         if (currencyInfo == null || currencyInfo.equals("/")) {
@@ -64,23 +66,15 @@ public class CurrencyServlet extends HttpServlet {
             return;
         }
 
-        try {
-            Optional<CurrencyDTO> currency = currencyService.getCurrencyByCode(currencyInfo.substring(1));
+        Optional<CurrencyDTO> currency = currencyService.getCurrencyByCode(currencyInfo.substring(1));
 
-            if (currency.isPresent()){
-                resp.setStatus(HttpServletResponse.SC_OK);
-                mapper.writeValue(resp.getWriter(), currency.get());
-
-            } else {
-                resp.setStatus(SC_NOT_FOUND);
-                mapper.writeValue(resp.getWriter(), new ErrorResponse(SC_NOT_FOUND
-                        , "Currency not found"));
-            }
-        } catch (SQLException e) {
-            if (!resp.isCommitted()) {
-                handleResponseError(resp , logger , mapper , e , SC_INTERNAL_SERVER_ERROR
-                        , "Something went wrong with database, try again later");
-            }
+        if (currency.isPresent()){
+            resp.setStatus(HttpServletResponse.SC_OK);
+            mapper.writeValue(resp.getWriter(), currency.get());
+        } else {
+            resp.setStatus(SC_NOT_FOUND);
+            mapper.writeValue(resp.getWriter(), new ErrorResponse(SC_NOT_FOUND
+                    , "Currency not found"));
         }
     }
 }

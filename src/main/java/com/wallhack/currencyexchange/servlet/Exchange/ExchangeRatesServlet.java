@@ -42,7 +42,9 @@ public class ExchangeRatesServlet extends HttpServlet {
     @Override
     public void destroy() {
        try {
-           connection.close();
+           if (connection != null && !connection.isClosed()) {
+               connection.close();
+           }
        }catch (SQLException e) {
            logger.log(Level.SEVERE, "Error closing database connection", e);
        }
@@ -54,27 +56,31 @@ public class ExchangeRatesServlet extends HttpServlet {
 
         try {
             processGetExchangeRates(resp);
-        }catch (IOException e){
-            handleResponseError(resp , logger , mapper , e , SC_INTERNAL_SERVER_ERROR ,"Error writing IO Exception response" );
-        }
-    }
-
-    private void processGetExchangeRates(HttpServletResponse resp) throws IOException {
-        try {
-            List<ExchangeRateDTO> allExchangeRates = exchangeService.getAllExchangeRates();
-            resp.setStatus(HttpServletResponse.SC_OK);
-            mapper.writeValue(resp.getWriter(), allExchangeRates);
-
-        } catch (SQLException e) {
+        }catch (Exception e){
             handleResponseError(resp , logger , mapper , e , SC_INTERNAL_SERVER_ERROR
                     ,"Something went wrong with database, try again later" );
         }
     }
 
+    private void processGetExchangeRates(HttpServletResponse resp) throws IOException, SQLException {
+        List<ExchangeRateDTO> allExchangeRates = exchangeService.getAllExchangeRates();
+        resp.setStatus(HttpServletResponse.SC_OK);
+        mapper.writeValue(resp.getWriter(), allExchangeRates);
+    }
+
     @Override
-    protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+    protected void doPost(HttpServletRequest req, HttpServletResponse resp) {
         prepareResponse(resp);
 
+        try {
+            processPostExchangeRates(req, resp);
+        }catch (Exception e){
+            handleResponseError(resp, logger , mapper , e ,SC_INTERNAL_SERVER_ERROR
+                    , "Something went wrong, try again later or verify your request parameters");
+        }
+    }
+
+    private void processPostExchangeRates(HttpServletRequest req, HttpServletResponse resp) throws IOException, SQLException, NumberFormatException {
         var baseCurrencyCode = req.getParameter("baseCurrencyCode");
         var targetCurrencyCode = req.getParameter("targetCurrencyCode");
         var rate = req.getParameter("rate");
@@ -85,13 +91,11 @@ public class ExchangeRatesServlet extends HttpServlet {
             return;
         }
 
-        try {
-            BigDecimal bigRate = new BigDecimal(rate);
-            Optional<CurrencyDTO> baseCurrency = currencyService.getCurrencyByCode(baseCurrencyCode);
-            Optional<CurrencyDTO> targetCurrency = currencyService.getCurrencyByCode(targetCurrencyCode);
+        BigDecimal bigRate = new BigDecimal(rate);
+        Optional<CurrencyDTO> baseCurrency = currencyService.getCurrencyByCode(baseCurrencyCode);
+        Optional<CurrencyDTO> targetCurrency = currencyService.getCurrencyByCode(targetCurrencyCode);
 
-            if (baseCurrency.isPresent() && targetCurrency.isPresent()){
-            Optional<ExchangeRateDTO> existingExchange = exchangeService
+        if (baseCurrency.isPresent() && targetCurrency.isPresent()){Optional<ExchangeRateDTO> existingExchange = exchangeService
                         .getExchangeRateByBothCurrency(baseCurrencyCode, targetCurrencyCode);
 
             if (existingExchange.isEmpty()) {
@@ -105,17 +109,9 @@ public class ExchangeRatesServlet extends HttpServlet {
                 mapper.writeValue(resp.getWriter(), new ErrorResponse(SC_CONFLICT , "Exchange rate not found"));
             }
 
-            } else {
-                resp.setStatus(HttpServletResponse.SC_NOT_FOUND);
-                mapper.writeValue(resp.getWriter(), new ErrorResponse(SC_NOT_FOUND , "Currency not found"));
-            }
-
-        } catch (SQLException e) {
-            handleResponseError(resp , logger , mapper , e ,SC_INTERNAL_SERVER_ERROR
-                    , "Something went wrong with database, try again later");
-        }catch (NumberFormatException e){
-            handleResponseError(resp , logger , mapper , e ,SC_NOT_ACCEPTABLE
-                    , "Wrong rate format , only numbers are acceptable");
+        } else {
+            resp.setStatus(HttpServletResponse.SC_NOT_FOUND);
+            mapper.writeValue(resp.getWriter(), new ErrorResponse(SC_NOT_FOUND , "Currency not found"));
         }
     }
 }
