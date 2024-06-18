@@ -2,9 +2,8 @@ package com.wallhack.currencyexchange.servlet.Exchange;
 
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.wallhack.currencyexchange.model.CurrencyDTO;
+import com.wallhack.currencyexchange.model.ErrorResponse;
 import com.wallhack.currencyexchange.model.ExchangeRateDTO;
-import com.wallhack.currencyexchange.service.CurrencyService;
 import com.wallhack.currencyexchange.service.ExchangeService;
 import com.wallhack.currencyexchange.utils.SingletonDataBaseConnection;
 import jakarta.servlet.ServletException;
@@ -18,28 +17,33 @@ import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Optional;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
-import static com.wallhack.currencyexchange.utils.ServletUtils.stringIsNotEmpty;
+import static com.wallhack.currencyexchange.utils.ServletUtils.*;
+import static jakarta.servlet.http.HttpServletResponse.*;
 
 @WebServlet(name = "ExchangeRateServlet", value = "/exchangeRate/*")
 public class ExchangeRateServlet extends HttpServlet {
-    Connection connection;
-    ExchangeService exchangeService;
-    CurrencyService currencyService;
+    private Connection connection;
+    private ExchangeService exchangeService;
+    private final ObjectMapper mapper = new ObjectMapper();
+    private static final Logger logger = Logger.getLogger(ExchangeRateServlet.class.getName());
 
     @Override
     public void init(){
         connection = SingletonDataBaseConnection.getInstance().getConnection();
         this.exchangeService = new ExchangeService(connection);
-        this.currencyService = new CurrencyService(connection);
     }
 
     @Override
     public void destroy() {
         try {
-            connection.close();
+            if (connection != null && !connection.isClosed()) {
+                connection.close();
+            }
         } catch (SQLException e) {
-            e.printStackTrace();
+            logger.log(Level.SEVERE, "Error closing database connection", e);
         }
     }
 
@@ -54,50 +58,55 @@ public class ExchangeRateServlet extends HttpServlet {
     }
 
     @Override
-    protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
-        ObjectMapper mapper = new ObjectMapper();
-        resp.setContentType("application/json");
-        resp.setCharacterEncoding("UTF-8");
-
-        var currencyInfo = req.getPathInfo();
-
-        if (currencyInfo.length() < 6) {
-            resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-        }
+    protected void doGet(HttpServletRequest req, HttpServletResponse resp) {
+        prepareResponse(resp);
 
         try {
-            Optional<CurrencyDTO> baseCurrencyDTO = currencyService.getCurrencyByCode(currencyInfo.substring(1, 4));
-            Optional<CurrencyDTO> targetCurrencyDTO = currencyService.getCurrencyByCode(currencyInfo.substring(4, 7));
-
-            if (baseCurrencyDTO.isPresent() && targetCurrencyDTO.isPresent()) {
-                Optional<ExchangeRateDTO> exchangeRateDTO = exchangeService.getExchangeRateByBothCurrency(baseCurrencyDTO.get().code(), targetCurrencyDTO.get().code());
-
-                if (exchangeRateDTO.isPresent()){
-                    mapper.writeValue(resp.getWriter(),exchangeRateDTO.get());
-                    resp.setStatus(HttpServletResponse.SC_OK);
-                }else resp.setStatus(HttpServletResponse.SC_NOT_FOUND);
-
-            }else resp.setStatus(HttpServletResponse.SC_NOT_FOUND);
-
-        }catch (SQLException e){
-            e.printStackTrace();
-            resp.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+            processGetExchangeRate(req, resp);
+        }catch (Exception e){
+            handleResponseError(resp , logger , mapper , e , SC_INTERNAL_SERVER_ERROR
+                    , "Something went wrong with database, try again later" );
         }
     }
 
-    protected void doPatch(HttpServletRequest req, HttpServletResponse resp) throws IOException {
-        resp.setContentType("application/json");
-        resp.setCharacterEncoding("UTF-8");
-
-        if (!"PATCH".equalsIgnoreCase(req.getMethod())) {
-            resp.setStatus(HttpServletResponse.SC_METHOD_NOT_ALLOWED);
-            return;
-        }
-
+    private void processGetExchangeRate(HttpServletRequest req, HttpServletResponse resp) throws IOException, SQLException {
         var currencyInfo = req.getPathInfo();
 
-        if (currencyInfo.length() < 6) {
-            resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+        if (currencyInfo.length() != 7) {
+            resp.setStatus(SC_BAD_REQUEST);
+            mapper.writeValue(resp.getWriter(), new ErrorResponse(SC_BAD_REQUEST , "Non-existing path parameters"));
+        }
+
+        Optional<ExchangeRateDTO> exchangeRateDTO = exchangeService.getExchangeRateByBothCurrency(currencyInfo.substring(1, 4)
+                , currencyInfo.substring(4, 7));
+
+        if (exchangeRateDTO.isPresent()){
+            resp.setStatus(HttpServletResponse.SC_OK);
+            mapper.writeValue(resp.getWriter(),exchangeRateDTO.get());
+        }else {
+            resp.setStatus(SC_NOT_FOUND);
+            mapper.writeValue(resp.getWriter() , new ErrorResponse(SC_BAD_REQUEST , "Exchange rate not found"));
+        }
+    }
+
+    protected void doPatch(HttpServletRequest req, HttpServletResponse resp) {
+        prepareResponse(resp);
+
+        try {
+            processPatchExchangeRate(req, resp);
+        }catch (Exception e){
+            handleResponseError(resp , logger , mapper , e , SC_INTERNAL_SERVER_ERROR
+                    , "Something went wrong, try again later or verify your request parameters");
+        }
+
+    }
+
+    private void processPatchExchangeRate(HttpServletRequest req, HttpServletResponse resp) throws IOException, SQLException, NumberFormatException {
+        var currencyInfo = req.getPathInfo();
+
+        if (currencyInfo.length() != 7) {
+            resp.setStatus(SC_BAD_REQUEST);
+            mapper.writeValue(resp.getWriter(), new ErrorResponse(SC_BAD_REQUEST , "Non-existing path parameters"));
         }
 
         var baseCurrencyCode = currencyInfo.substring(1, 4);
@@ -105,33 +114,24 @@ public class ExchangeRateServlet extends HttpServlet {
         var rate = req.getReader().readLine().replace("rate=", "");
 
         if (stringIsNotEmpty(baseCurrencyCode, targetCurrencyCode, rate)) {
-            resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+            resp.setStatus(SC_BAD_REQUEST);
+            mapper.writeValue(resp.getWriter(), new ErrorResponse(SC_BAD_REQUEST , "Some or all parameters are empty"));
             return;
         }
 
-        try {
-            Optional<CurrencyDTO> baseCurrency = currencyService.getCurrencyByCode(baseCurrencyCode);
-            Optional<CurrencyDTO> targetCurrency = currencyService.getCurrencyByCode(targetCurrencyCode);
-            BigDecimal bigRate = new BigDecimal(rate);
+        BigDecimal bigRate = new BigDecimal(rate);
+        Optional<ExchangeRateDTO> existingExchange = exchangeService
+                    .getExchangeRateByBothCurrency(baseCurrencyCode, targetCurrencyCode);
 
-            if (baseCurrency.isPresent() && targetCurrency.isPresent()) {
-                Optional<ExchangeRateDTO> existingExchange = exchangeService
-                        .getExchangeRateByBothCurrency(baseCurrency.get().code(), targetCurrency.get().code());
-                if (existingExchange.isEmpty()) {
-                    resp.setStatus(HttpServletResponse.SC_NOT_FOUND);
-                } else {
-                    exchangeService.updateExchangeRate(new ExchangeRateDTO(-1, baseCurrency.get(), targetCurrency.get(), bigRate));
-                    resp.setStatus(HttpServletResponse.SC_CREATED);
-                }
-            } else {
-                resp.setStatus(HttpServletResponse.SC_NOT_FOUND);
-            }
-
-        } catch (SQLException e) {
-            e.printStackTrace();
-            resp.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-        }catch (NumberFormatException e){
-            resp.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+        if (existingExchange.isPresent()) {
+            ExchangeRateDTO updatedExchangeDTO = new ExchangeRateDTO(-1, existingExchange.get().baseCurrency()
+                    , existingExchange.get().targetCurrency() , bigRate);
+            resp.setStatus(HttpServletResponse.SC_CREATED);
+            exchangeService.updateExchangeRate(updatedExchangeDTO);
+            mapper.writeValue(resp.getWriter(), updatedExchangeDTO);
+        }else {
+            resp.setStatus(SC_NOT_FOUND);
+            mapper.writeValue(resp.getWriter(), new ErrorResponse(SC_NOT_FOUND, "Exchange rate not found"));
         }
     }
 }

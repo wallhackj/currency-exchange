@@ -2,6 +2,7 @@ package com.wallhack.currencyexchange.servlet.Currency;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wallhack.currencyexchange.model.CurrencyDTO;
+import com.wallhack.currencyexchange.model.ErrorResponse;
 import com.wallhack.currencyexchange.service.CurrencyService;
 import com.wallhack.currencyexchange.utils.SingletonDataBaseConnection;
 import jakarta.servlet.annotation.WebServlet;
@@ -13,11 +14,19 @@ import java.io.IOException;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Optional;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
+import static com.wallhack.currencyexchange.utils.ServletUtils.handleResponseError;
+import static com.wallhack.currencyexchange.utils.ServletUtils.prepareResponse;
+import static jakarta.servlet.http.HttpServletResponse.*;
 
 @WebServlet(name = "CurrencyServlet", value = "/currency/*")
 public class CurrencyServlet extends HttpServlet {
-    private CurrencyService currencyService;
     private Connection connection;
+    private CurrencyService currencyService;
+    private final ObjectMapper mapper = new ObjectMapper();
+    private static final Logger logger = Logger.getLogger(CurrencyServlet.class.getName());
 
     @Override
     public void init() {
@@ -28,36 +37,44 @@ public class CurrencyServlet extends HttpServlet {
     @Override
     public void destroy() {
         try {
-            connection.close();
+            if (connection != null && !connection.isClosed()) {
+                connection.close();
+            }
         } catch (SQLException e) {
-            e.printStackTrace();
+            logger.log(Level.SEVERE, "Error closing database connection", e);
         }
     }
 
     @Override
-    protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException{
-        ObjectMapper mapper = new ObjectMapper();
-        resp.setContentType("application/json");
-        resp.setCharacterEncoding("UTF-8");
-
-        var currencyInfo = req.getPathInfo();
-
-        if (currencyInfo.equals("/")) {
-            resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-        }
+    protected void doGet(HttpServletRequest req, HttpServletResponse resp){
+        prepareResponse(resp);
 
         try {
-            Optional<CurrencyDTO> currency = currencyService.getCurrencyByCode(currencyInfo.substring(1));
-
-            if (currency.isPresent()){
-                mapper.writeValue(resp.getWriter(), currency.get());
-                resp.setStatus(HttpServletResponse.SC_OK);
-            } else resp.setStatus(HttpServletResponse.SC_NOT_FOUND);
-        } catch (SQLException e) {
-            resp.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-            e.printStackTrace();
+            processGetCurrency(req , resp);
+        }catch (Exception e){
+            handleResponseError(resp , logger , mapper , e , SC_INTERNAL_SERVER_ERROR ,"Error writing IO Exception response" );
         }
-
     }
 
+    private void processGetCurrency(HttpServletRequest req, HttpServletResponse resp) throws IOException, SQLException {
+        var currencyInfo = req.getPathInfo();
+
+        if (currencyInfo == null || currencyInfo.equals("/")) {
+            resp.setStatus(SC_BAD_REQUEST);
+            mapper.writeValue(resp.getWriter(), new ErrorResponse(SC_BAD_REQUEST
+                    , "Empty path parameter"));
+            return;
+        }
+
+        Optional<CurrencyDTO> currency = currencyService.getCurrencyByCode(currencyInfo.substring(1));
+
+        if (currency.isPresent()){
+            resp.setStatus(HttpServletResponse.SC_OK);
+            mapper.writeValue(resp.getWriter(), currency.get());
+        } else {
+            resp.setStatus(SC_NOT_FOUND);
+            mapper.writeValue(resp.getWriter(), new ErrorResponse(SC_NOT_FOUND
+                    , "Currency not found"));
+        }
+    }
 }
