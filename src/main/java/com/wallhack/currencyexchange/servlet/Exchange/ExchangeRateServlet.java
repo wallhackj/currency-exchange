@@ -1,6 +1,5 @@
 package com.wallhack.currencyexchange.servlet.Exchange;
 
-
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wallhack.currencyexchange.model.ErrorResponse;
 import com.wallhack.currencyexchange.model.ExchangeRateDTO;

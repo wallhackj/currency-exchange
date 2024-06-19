@@ -80,7 +80,7 @@ public class CurrenciesServlet extends HttpServlet {
         String fromCurrencyFullName = req.getParameter("name");
         String fromCurrencySign = req.getParameter("sign");
 
-        if (!stringIsNotEmpty(fromCurrencyCode, fromCurrencyFullName, fromCurrencySign)) {
+        if (stringIsNotEmpty(fromCurrencyCode, fromCurrencyFullName, fromCurrencySign)) {
             resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
             mapper.writeValue(resp.getWriter() , new ErrorResponse(SC_BAD_REQUEST
                     , "Missing required parameters"));
