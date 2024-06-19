@@ -28,7 +28,7 @@ public class RateService {
         var rate = 0f;
         ExchangeRateDTO exchangeRateDTO = null;
 
-        if (!stringIsNotEmpty(source, target, "1") || amount <= 0) {
+        if (stringIsNotEmpty(source, target, "1") || amount <= 0) {
             return Optional.empty();
         }
 
@@ -52,7 +52,7 @@ public class RateService {
                 exchangeRateDTO = exchangeService.getExchangeRateByBothCurrency(source , target).orElse(null);
             }
         }
-        if (rate == 0 && amount > 0) {
+        if (rate == 0) {
             return Optional.empty();
         }
         return Optional.of(new ExchangeDTO(exchangeRateDTO, rate , amount , rate * amount));
@@ -60,7 +60,6 @@ public class RateService {
 
     private BigDecimal inverseRate(BigDecimal rate) {
         BigDecimal one = BigDecimal.ONE;
-
         return one.divide(rate, MathContext.DECIMAL128);
     }
 

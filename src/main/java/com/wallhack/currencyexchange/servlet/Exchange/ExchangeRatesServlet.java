@@ -106,7 +106,7 @@ public class ExchangeRatesServlet extends HttpServlet {
 
             }else {
                 resp.setStatus(SC_CONFLICT);
-                mapper.writeValue(resp.getWriter(), new ErrorResponse(SC_CONFLICT , "Exchange rate not found"));
+                mapper.writeValue(resp.getWriter(), new ErrorResponse(SC_CONFLICT , "Exchange already exists"));
             }
 
         } else {

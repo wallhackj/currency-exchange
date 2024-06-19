@@ -71,6 +71,10 @@ public class ExchangeServlet extends HttpServlet {
         if (exchangeDTO.isPresent()) {
             resp.setStatus(HttpServletResponse.SC_OK);
             mapper.writeValue(resp.getWriter(), exchangeDTO.get());
+        }else {
+            resp.setStatus(SC_INTERNAL_SERVER_ERROR);
+            mapper.writeValue(resp.getWriter(), new ErrorResponse(SC_INTERNAL_SERVER_ERROR
+                    , "Something went wrong check parameters or try again later"));
         }
     }
 }
