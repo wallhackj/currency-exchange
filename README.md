@@ -170,22 +170,22 @@ GET /exchange?from=BASE_CURRENCY_CODE&to=TARGET_CURRENCY_CODE&amount=$AMOUNT
 Calculate the conversion of a particular amount of money from one currency to another. The currency pair and amount is specified in the query address. Example of response:
 
 {
-    "exchangeRateDTO": {
-        "id": 11,
-        "baseCurrency": {
-            "id": 2,
-            "code": "EUR",
-            "fullName": "Euro",
-            "sign": "€"
-        },
-        "targetCurrency": {
-            "id": 4,
-            "code": "GBP",
-            "fullName": "Pound Sterling",
-            "sign": "£"
-        },
-        "rate": 0.86
-    },
+  "baseCurrency": {
+    "id": 0,
+    "name": "United States dollar",
+    "code": "USD",
+    "sign": "$"
+  },
+  "targetCurrency": {
+    "id": 2,
+    "name": "Czech Koruna",
+    "code": "CZK",
+    "sign": "Kč"
+  },
+  "rate": 22.24,
+  "amount": 100.00,
+  "convertedAmount": 2224.00
+}
     "rate": 0.86,
     "amount": 11.0,
     "convertedAmount": 9.46
