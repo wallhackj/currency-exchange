@@ -22,10 +22,13 @@ Link for tasks for the project: https://zhukovsd.github.io/java-backend-learning
 API features
 Note: Postman collection is in project.
 
-Currencies
-GET /currencies
-Returns list of all currencies. Example of response:
+## Currencies
+## GET /currencies
 
+#### Returns list of all currencies. Example of response:
+
+<div>
+  <pre id="jsonResponse">
 [
     {
         "id": 1,
@@ -41,9 +44,15 @@ Returns list of all currencies. Example of response:
     },
   "..."
 ]
-GET /currency/MDL
-Returns particular currency. The currency code is specified in the query address Example of response:
+</pre>
+</div>
 
+## GET /currency/MDL
+
+#### Returns particular currency. The currency code is specified in the query address Example of response:
+
+<div>
+  <pre id="jsonResponse">
 [
   {
     "id": 8,
@@ -52,9 +61,15 @@ Returns particular currency. The currency code is specified in the query address
     "sign": "L"
 }
 ]
-POST /currencies
-Adding a new currency to the database. Data is passed in the body of request in the x-www-form-urlencoded. The form fields are name, code, symbol. Example of response (inserted record):
+</pre>
+</div>
 
+## POST /currencies
+
+#### Adding a new currency to the database. Data is passed in the body of request in the x-www-form-urlencoded. The form fields are name, code, symbol. Example of response (inserted record):
+
+<div>
+  <pre id="jsonResponse">
 [
   {
     "id": 2,
@@ -63,10 +78,15 @@ Adding a new currency to the database. Data is passed in the body of request in 
     "sign": "Kč"
   }
 ]
-Exchange rates
-GET /exchangeRates
-Returns list of all exchange rates. Example of response:
+</pre>
+</div>
 
+## Exchange rates
+## GET /exchangeRates
+#### Returns list of all exchange rates. Example of response:
+
+<div>
+  <pre id="jsonResponse">
 [
   {
         "id": 5,
@@ -102,9 +122,15 @@ Returns list of all exchange rates. Example of response:
     },
   "..."
 ]
-POST /exchangeRates
-Adding a new exchange rate to the database. Data is passed in the body of request in the x-www-form-urlencoded. The form fields are baseCurrencyCode, targetCurrencyCode, rate. Example of response (inserted record):
+</pre>
+</div>
 
+## POST /exchangeRates
+
+#### Adding a new exchange rate to the database. Data is passed in the body of request in the x-www-form-urlencoded. The form fields are baseCurrencyCode, targetCurrencyCode, rate. Example of response (inserted record):
+
+<div>
+  <pre id="jsonResponse">
 [
   {
     "id": 2,
@@ -123,9 +149,15 @@ Adding a new exchange rate to the database. Data is passed in the body of reques
     "rate": 0.95
   }
 ]
-GET /exchangeRate/USDEUR
-Returns a particular exchange rate. The currency pair is specified by consecutive currency codes in the query address. Example of response:
+</pre>
+</div>
 
+## GET /exchangeRate/USDEUR
+
+#### Returns a particular exchange rate. The currency pair is specified by consecutive currency codes in the query address. Example of response:
+
+<div>
+  <pre id="jsonResponse">
 [
   {
     "id": 0,
@@ -144,9 +176,15 @@ Returns a particular exchange rate. The currency pair is specified by consecutiv
     "rate": 0.93
   }
 ]
-PATCH /exchangeRate/MDLEUR
-Updates the existing exchange rate in the database. The currency pair is specified by consecutive currency codes in the query address. The data is passed in the body of the request in the x-www-form-urlencoded. The only form field is rate. Example of response (inserted record):
+</pre>
+</div>
 
+## PATCH /exchangeRate/MDLEUR
+
+#### Updates the existing exchange rate in the database. The currency pair is specified by consecutive currency codes in the query address. The data is passed in the body of the request in the x-www-form-urlencoded. The only form field is rate. Example of response (inserted record):
+
+<div>
+  <pre id="jsonResponse">
 [
   {
     "id": -1,
@@ -165,28 +203,37 @@ Updates the existing exchange rate in the database. The currency pair is specifi
     "rate": 0.054
 }
 ]
-Currency exchange
-GET /exchange?from=BASE_CURRENCY_CODE&to=TARGET_CURRENCY_CODE&amount=$AMOUNT
+</pre>
+</div>
+
+## Currency exchange
+#### GET /exchange?from=BASE_CURRENCY_CODE&to=TARGET_CURRENCY_CODE&amount=$AMOUNT
+
 Calculate the conversion of a particular amount of money from one currency to another. The currency pair and amount is specified in the query address. Example of response:
 
+<div>
+  <pre id="jsonResponse">
 {
-  "baseCurrency": {
-    "id": 0,
-    "name": "United States dollar",
-    "code": "USD",
-    "sign": "$"
-  },
-  "targetCurrency": {
-    "id": 2,
-    "name": "Czech Koruna",
-    "code": "CZK",
-    "sign": "Kč"
-  },
-  "rate": 22.24,
-  "amount": 100.00,
-  "convertedAmount": 2224.00
-}
+    "exchangeRateDTO": {
+        "id": 11,
+        "baseCurrency": {
+            "id": 2,
+            "code": "EUR",
+            "fullName": "Euro",
+            "sign": "€"
+        },
+        "targetCurrency": {
+            "id": 4,
+            "code": "GBP",
+            "fullName": "Pound Sterling",
+            "sign": "£"
+        },
+        "rate": 0.86
+    },
     "rate": 0.86,
     "amount": 11.0,
     "convertedAmount": 9.46
 }
+  </pre>
+</div>
+
